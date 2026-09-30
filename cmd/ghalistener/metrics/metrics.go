@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -25,6 +26,19 @@ const (
 	labelKeyJobWorkflowTarget       = "job_workflow_target"
 	labelKeyEventName               = "event_name"
 	labelKeyJobResult               = "job_result"
+	labelKeyPollResult              = "poll_result"
+)
+
+// PollResult is the outcome of a single long-poll for messages.
+type PollResult string
+
+const (
+	// PollResultMessage means the poll returned a message.
+	PollResultMessage PollResult = "message"
+	// PollResultEmpty means the poll completed without a message (202 Accepted).
+	PollResultEmpty PollResult = "empty"
+	// PollResultError means the poll failed.
+	PollResultError PollResult = "error"
 )
 
 const (
@@ -46,6 +60,11 @@ const (
 	MetricCompletedJobsTotal          = "gha_completed_jobs_total"
 	MetricJobStartupDurationSeconds   = "gha_job_startup_duration_seconds"
 	MetricJobExecutionDurationSeconds = "gha_job_execution_duration_seconds"
+
+	MetricListenerPollsTotal                    = "gha_listener_polls_total"
+	MetricListenerLastPollTimestampSeconds      = "gha_listener_last_poll_timestamp_seconds"
+	MetricListenerLastPollDurationSeconds       = "gha_listener_last_poll_duration_seconds"
+	MetricStatisticsLastUpdatedTimestampSeconds = "gha_statistics_last_updated_timestamp_seconds"
 )
 
 type metricsHelpRegistry struct {
@@ -58,6 +77,7 @@ var metricsHelp = metricsHelpRegistry{
 	counters: map[string]string{
 		MetricStartedJobsTotal:   "Total number of jobs started.",
 		MetricCompletedJobsTotal: "Total number of jobs completed.",
+		MetricListenerPollsTotal: "Total number of message polls completed by the listener, by poll result (message, empty or error).",
 	},
 	gauges: map[string]string{
 		MetricAssignedJobs:      "Number of jobs assigned to this scale set.",
@@ -68,6 +88,10 @@ var metricsHelp = metricsHelpRegistry{
 		MetricMaxRunners:        "Maximum number of runners.",
 		MetricDesiredRunners:    "Number of runners desired by the scale set.",
 		MetricIdleRunners:       "Number of registered runners not running a job.",
+
+		MetricListenerLastPollTimestampSeconds:      "Unix timestamp (in seconds) of the last completed message poll.",
+		MetricListenerLastPollDurationSeconds:       "Duration of the last completed message poll (in seconds).",
+		MetricStatisticsLastUpdatedTimestampSeconds: "Unix timestamp (in seconds) of the last time the scale set statistics were updated. Statistics are only updated when a message or new session is received, so the statistics gauges are as old as this timestamp.",
 	},
 	histograms: map[string]string{
 		MetricJobStartupDurationSeconds:   "Time spent waiting for workflow job to get started on the runner owned by the scale set (in seconds).",
@@ -105,6 +129,7 @@ type Recorder interface {
 	RecordJobStarted(msg *scaleset.JobStarted)
 	RecordJobCompleted(msg *scaleset.JobCompleted)
 	RecordDesiredRunners(count int)
+	RecordPoll(result PollResult, duration time.Duration)
 }
 
 type ServerExporter interface {
@@ -124,6 +149,9 @@ type exporter struct {
 	scaleSetLabels prometheus.Labels
 	*metrics
 	srv *http.Server
+	// now returns the current time. It is used for the timestamp gauges and
+	// can be overridden in tests. Defaults to time.Now when nil.
+	now func() time.Time
 }
 
 type metrics struct {
@@ -178,6 +206,16 @@ var defaultMetrics = v1alpha1.MetricsConfig{
 				labelKeyJobName,
 				labelKeyEventName,
 				labelKeyJobResult,
+			},
+		},
+		MetricListenerPollsTotal: {
+			Labels: []string{
+				labelKeyEnterprise,
+				labelKeyOrganization,
+				labelKeyRepository,
+				labelKeyRunnerScaleSetName,
+				labelKeyRunnerScaleSetNamespace,
+				labelKeyPollResult,
 			},
 		},
 	},
@@ -246,6 +284,33 @@ var defaultMetrics = v1alpha1.MetricsConfig{
 			},
 		},
 		MetricIdleRunners: {
+			Labels: []string{
+				labelKeyEnterprise,
+				labelKeyOrganization,
+				labelKeyRepository,
+				labelKeyRunnerScaleSetName,
+				labelKeyRunnerScaleSetNamespace,
+			},
+		},
+		MetricListenerLastPollTimestampSeconds: {
+			Labels: []string{
+				labelKeyEnterprise,
+				labelKeyOrganization,
+				labelKeyRepository,
+				labelKeyRunnerScaleSetName,
+				labelKeyRunnerScaleSetNamespace,
+			},
+		},
+		MetricListenerLastPollDurationSeconds: {
+			Labels: []string{
+				labelKeyEnterprise,
+				labelKeyOrganization,
+				labelKeyRepository,
+				labelKeyRunnerScaleSetName,
+				labelKeyRunnerScaleSetNamespace,
+			},
+		},
+		MetricStatisticsLastUpdatedTimestampSeconds: {
 			Labels: []string{
 				labelKeyEnterprise,
 				labelKeyOrganization,
@@ -482,6 +547,30 @@ func (e *exporter) RecordStatistics(stats *scaleset.RunnerScaleSetStatistic) {
 	e.setGauge(MetricRegisteredRunners, e.scaleSetLabels, float64(stats.TotalRegisteredRunners))
 	e.setGauge(MetricBusyRunners, e.scaleSetLabels, float64(stats.TotalBusyRunners))
 	e.setGauge(MetricIdleRunners, e.scaleSetLabels, float64(stats.TotalIdleRunners))
+	e.setGauge(MetricStatisticsLastUpdatedTimestampSeconds, e.scaleSetLabels, unixSeconds(e.currentTime()))
+}
+
+// RecordPoll records the outcome of a single message poll: a counter per
+// result, and the time and duration of the most recent poll.
+func (e *exporter) RecordPoll(result PollResult, duration time.Duration) {
+	l := make(prometheus.Labels, len(e.scaleSetLabels)+1)
+	maps.Copy(l, e.scaleSetLabels)
+	l[labelKeyPollResult] = string(result)
+	e.incCounter(MetricListenerPollsTotal, l)
+
+	e.setGauge(MetricListenerLastPollTimestampSeconds, e.scaleSetLabels, unixSeconds(e.currentTime()))
+	e.setGauge(MetricListenerLastPollDurationSeconds, e.scaleSetLabels, duration.Seconds())
+}
+
+func (e *exporter) currentTime() time.Time {
+	if e.now != nil {
+		return e.now()
+	}
+	return time.Now()
+}
+
+func unixSeconds(t time.Time) float64 {
+	return float64(t.UnixNano()) / float64(time.Second)
 }
 
 func (e *exporter) RecordJobStarted(msg *scaleset.JobStarted) {
@@ -527,6 +616,7 @@ func (*discard) RecordStatistics(*scaleset.RunnerScaleSetStatistic) {}
 func (*discard) RecordJobStarted(*scaleset.JobStarted)              {}
 func (*discard) RecordJobCompleted(*scaleset.JobCompleted)          {}
 func (*discard) RecordDesiredRunners(int)                           {}
+func (*discard) RecordPoll(PollResult, time.Duration)               {}
 
 var defaultRuntimeBuckets []float64 = []float64{
 	0.01,

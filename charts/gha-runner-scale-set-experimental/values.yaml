@@ -379,6 +379,9 @@ listener:
   #           "job_workflow_name",
   #           "job_workflow_target",
   #         ]
+  #     gha_listener_polls_total:
+  #       labels:
+  #         ["name", "namespace", "repository", "organization", "enterprise", "poll_result"]
   #   gauges:
   #     gha_assigned_jobs:
   #       labels: ["name", "namespace", "repository", "organization", "enterprise"]
@@ -395,6 +398,12 @@ listener:
   #     gha_desired_runners:
   #       labels: ["name", "namespace", "repository", "organization", "enterprise"]
   #     gha_idle_runners:
+  #       labels: ["name", "namespace", "repository", "organization", "enterprise"]
+  #     gha_listener_last_poll_timestamp_seconds:
+  #       labels: ["name", "namespace", "repository", "organization", "enterprise"]
+  #     gha_listener_last_poll_duration_seconds:
+  #       labels: ["name", "namespace", "repository", "organization", "enterprise"]
+  #     gha_statistics_last_updated_timestamp_seconds:
   #       labels: ["name", "namespace", "repository", "organization", "enterprise"]
   #   histograms:
   #     gha_job_startup_duration_seconds:

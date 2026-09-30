@@ -55,6 +55,14 @@ func TestChartValuesMetricsExample(t *testing.T) {
 		MetricCompletedJobsTotal:          completedLabels,
 		MetricJobStartupDurationSeconds:   startedLabels,
 		MetricJobExecutionDurationSeconds: completedLabels,
+		MetricListenerPollsTotal:          append(keys(e.scaleSetLabels), labelKeyPollResult),
+	}
+	// The opt-in labels only apply to the job metrics.
+	optInLabelsFor := map[string][]string{
+		MetricStartedJobsTotal:            optInLabels,
+		MetricCompletedJobsTotal:          optInLabels,
+		MetricJobStartupDurationSeconds:   optInLabels,
+		MetricJobExecutionDurationSeconds: optInLabels,
 	}
 	for name := range defaultMetrics.Gauges {
 		allLabels[name] = keys(e.scaleSetLabels)
@@ -66,7 +74,7 @@ func TestChartValuesMetricsExample(t *testing.T) {
 
 			require.ElementsMatch(t, keys(defaultMetrics.Counters), keys(got.Counters))
 			for name, want := range defaultMetrics.Counters {
-				assertExampleLabels(t, "counter "+name, got.Counters[name].Labels, allLabels[name], want.Labels, optInLabels)
+				assertExampleLabels(t, "counter "+name, got.Counters[name].Labels, allLabels[name], want.Labels, optInLabelsFor[name])
 			}
 
 			require.ElementsMatch(t, keys(defaultMetrics.Gauges), keys(got.Gauges))
@@ -76,7 +84,7 @@ func TestChartValuesMetricsExample(t *testing.T) {
 
 			require.ElementsMatch(t, keys(defaultMetrics.Histograms), keys(got.Histograms))
 			for name, want := range defaultMetrics.Histograms {
-				assertExampleLabels(t, "histogram "+name, got.Histograms[name].Labels, allLabels[name], want.Labels, optInLabels)
+				assertExampleLabels(t, "histogram "+name, got.Histograms[name].Labels, allLabels[name], want.Labels, optInLabelsFor[name])
 				assert.Equal(t, want.Buckets, got.Histograms[name].Buckets, "histogram %q buckets", name)
 			}
 		})

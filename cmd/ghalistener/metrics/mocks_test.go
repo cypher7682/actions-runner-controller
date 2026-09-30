@@ -6,6 +6,7 @@ package metrics
 
 import (
 	"context"
+	"time"
 
 	"github.com/actions/scaleset"
 	mock "github.com/stretchr/testify/mock"
@@ -154,6 +155,52 @@ func (_c *MockRecorder_RecordJobStarted_Call) Return() *MockRecorder_RecordJobSt
 }
 
 func (_c *MockRecorder_RecordJobStarted_Call) RunAndReturn(run func(msg *scaleset.JobStarted)) *MockRecorder_RecordJobStarted_Call {
+	_c.Run(run)
+	return _c
+}
+
+// RecordPoll provides a mock function for the type MockRecorder
+func (_mock *MockRecorder) RecordPoll(result PollResult, duration time.Duration) {
+	_mock.Called(result, duration)
+	return
+}
+
+// MockRecorder_RecordPoll_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RecordPoll'
+type MockRecorder_RecordPoll_Call struct {
+	*mock.Call
+}
+
+// RecordPoll is a helper method to define mock.On call
+//   - result PollResult
+//   - duration time.Duration
+func (_e *MockRecorder_Expecter) RecordPoll(result interface{}, duration interface{}) *MockRecorder_RecordPoll_Call {
+	return &MockRecorder_RecordPoll_Call{Call: _e.mock.On("RecordPoll", result, duration)}
+}
+
+func (_c *MockRecorder_RecordPoll_Call) Run(run func(result PollResult, duration time.Duration)) *MockRecorder_RecordPoll_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 PollResult
+		if args[0] != nil {
+			arg0 = args[0].(PollResult)
+		}
+		var arg1 time.Duration
+		if args[1] != nil {
+			arg1 = args[1].(time.Duration)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRecorder_RecordPoll_Call) Return() *MockRecorder_RecordPoll_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockRecorder_RecordPoll_Call) RunAndReturn(run func(result PollResult, duration time.Duration)) *MockRecorder_RecordPoll_Call {
 	_c.Run(run)
 	return _c
 }
@@ -438,6 +485,52 @@ func (_c *MockServerExporter_RecordJobStarted_Call) Return() *MockServerExporter
 }
 
 func (_c *MockServerExporter_RecordJobStarted_Call) RunAndReturn(run func(msg *scaleset.JobStarted)) *MockServerExporter_RecordJobStarted_Call {
+	_c.Run(run)
+	return _c
+}
+
+// RecordPoll provides a mock function for the type MockServerExporter
+func (_mock *MockServerExporter) RecordPoll(result PollResult, duration time.Duration) {
+	_mock.Called(result, duration)
+	return
+}
+
+// MockServerExporter_RecordPoll_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RecordPoll'
+type MockServerExporter_RecordPoll_Call struct {
+	*mock.Call
+}
+
+// RecordPoll is a helper method to define mock.On call
+//   - result PollResult
+//   - duration time.Duration
+func (_e *MockServerExporter_Expecter) RecordPoll(result interface{}, duration interface{}) *MockServerExporter_RecordPoll_Call {
+	return &MockServerExporter_RecordPoll_Call{Call: _e.mock.On("RecordPoll", result, duration)}
+}
+
+func (_c *MockServerExporter_RecordPoll_Call) Run(run func(result PollResult, duration time.Duration)) *MockServerExporter_RecordPoll_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 PollResult
+		if args[0] != nil {
+			arg0 = args[0].(PollResult)
+		}
+		var arg1 time.Duration
+		if args[1] != nil {
+			arg1 = args[1].(time.Duration)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockServerExporter_RecordPoll_Call) Return() *MockServerExporter_RecordPoll_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockServerExporter_RecordPoll_Call) RunAndReturn(run func(result PollResult, duration time.Duration)) *MockServerExporter_RecordPoll_Call {
 	_c.Run(run)
 	return _c
 }

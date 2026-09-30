@@ -90,8 +90,10 @@ func run(ctx context.Context, config *config.Config) error {
 		}
 	}()
 
+	var listenerClient listener.Client = sessionClient
 	var listenerOptions []listener.Option
 	if metricsExporter != nil {
+		listenerClient = metrics.InstrumentListenerClient(sessionClient, metricsExporter)
 		listenerOptions = append(
 			listenerOptions,
 			listener.WithMetricsRecorder(
@@ -102,7 +104,7 @@ func run(ctx context.Context, config *config.Config) error {
 	}
 
 	listener, err := listener.New(
-		sessionClient,
+		listenerClient,
 		listener.Config{
 			ScaleSetID: config.RunnerScaleSetID,
 			MaxRunners: config.MaxRunners,
